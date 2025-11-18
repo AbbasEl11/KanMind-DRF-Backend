@@ -50,13 +50,13 @@ class BoardCreateSerializer(serializers.ModelSerializer):
 
 
 class UserSerializer(serializers.ModelSerializer):
-    full_name = serializers.SerializerMethodField()
+    fullname = serializers.SerializerMethodField()
 
     class Meta:
         model = User
-        fields = ['id', 'full_name', 'email']
+        fields = ['id', 'fullname', 'email']
 
-    def get_full_name(self, obj):
+    def get_fullname(self, obj):
         return obj.userprofile.full_name
 
 

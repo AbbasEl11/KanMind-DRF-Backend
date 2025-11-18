@@ -1,17 +1,17 @@
 from django.db import models
 from django.contrib.auth.models import User
 from rest_framework import serializers
-from ..models import Task
+from ..models import Task , TaskComment
 
 
 class UserSerializer(serializers.ModelSerializer):
-    full_name = serializers.SerializerMethodField()
+    fullname = serializers.SerializerMethodField()
 
     class Meta:
         model = User
-        fields = ['id', 'full_name', 'email']
+        fields = ['id', 'fullname', 'email']
 
-    def get_full_name(self, obj):
+    def get_fullname(self, obj):
         return obj.userprofile.full_name
 
 
@@ -23,6 +23,7 @@ class TaskSerializer(serializers.ModelSerializer):
     comments_count = serializers.SerializerMethodField()
     assignee = UserSerializer(read_only=True)
     reviewer = UserSerializer(read_only=True)
+    
 
     class Meta:
         model = Task
@@ -30,8 +31,7 @@ class TaskSerializer(serializers.ModelSerializer):
                   'reviewer', 'due_date', 'comments_count', 'assignee_id', 'reviewer_id']
 
     def get_comments_count(self, obj):
-        # return obj.comments.count()
-        return 0
+        return obj.comments.count()
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
@@ -78,3 +78,16 @@ class TaskSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 {"board": "Changing the board of a task is not allowed."}
             )
+
+class TaskCommentSerializer(serializers.ModelSerializer):
+    author = serializers.CharField(source='author.userprofile.full_name', read_only=True)
+    content = serializers.CharField()
+    
+    class Meta:
+        model = TaskComment
+        fields = ['id', 'author', 'content', 'created_at',]
+        
+    def validate(self, value):
+        if not value.get('content').strip():
+            raise serializers.ValidationError({"content": "Content cannot be empty."})
+        return value

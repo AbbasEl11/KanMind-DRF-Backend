@@ -1,11 +1,12 @@
-from django.shortcuts import render
+from django.shortcuts import get_object_or_404, render
 from rest_framework import viewsets, mixins
-from ..models import Task
-from .serializers import TaskSerializer
-from .permissions import IsMemberOfBoard, IsBoardOwner, IsTaskOwner
+from ..models import Task, TaskComment
+from .serializers import TaskSerializer, TaskCommentSerializer
+from .permissions import IsMemberOfBoard, IsBoardOwner, IsTaskOwner, IsCreatorOfComment
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.contrib.auth.models import User
+from rest_framework.exceptions import PermissionDenied
 # Create your views here.
 
 
@@ -29,8 +30,56 @@ class TaskViewSet(mixins.CreateModelMixin,
         return [permission() for permission in permission_classes]
 
 
-class TaskCommentsViewSet(viewsets.ModelViewSet):
-    pass
+class TaskCommentsViewSet(mixins.ListModelMixin,
+                          mixins.CreateModelMixin,
+                          mixins.DestroyModelMixin,
+                          viewsets.GenericViewSet):
+    queryset = TaskComment.objects.all()   
+    serializer_class = TaskCommentSerializer
+    lookup_field = 'pk'
+    
+    
+    def get_queryset(self):
+        task_id = self.kwargs.get('task_pk')
+        task = get_object_or_404(Task.objects.select_related("board"), pk=task_id)
+        user = self.request.user
+        board = task.board
+        
+     
+        if user != board.owner and user not in board.members.all():
+            raise PermissionDenied("You do not have permission to view comments for this task.")
+        
+        return TaskComment.objects.filter(task=task).select_related("author")
+    
+    def create(self, request, *args, **kwargs):
+        task_id = kwargs.get('task_pk')
+        task = get_object_or_404(Task.objects.select_related("board"), pk=task_id)
+        user = request.user
+        board = task.board
+        
+        if user != board.owner and user not in board.members.all():
+            return Response({'detail': 'You do not have permission to perform this action.'}, status=403)
+        
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(author=request.user, task=task)
+        response={
+            "id": serializer.instance.id,
+            "author": user.userprofile.full_name,
+            "content": serializer.instance.content,
+            "created_at": serializer.instance.created_at
+        }
+        return Response(response, status=201)
+    
+    def destroy(self, request, *args, **kwargs):
+        comment = self.get_object()
+        user = request.user
+        
+        if comment.author != user:
+            return Response({'detail': 'You do not have permission to delete this comment.'}, status=403)
+        
+        self.perform_destroy(comment)
+        return Response(status=204)
 
 
 class TaskAssignedOrReviewerViewSet(mixins.ListModelMixin,

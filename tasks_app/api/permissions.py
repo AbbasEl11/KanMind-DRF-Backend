@@ -20,3 +20,7 @@ class IsMemberOfBoard(BasePermission):
 class IsTaskOwner(BasePermission):
     def has_object_permission(self, request, view, obj):
         return obj.assignee_id == request.user
+
+class IsCreatorOfComment(BasePermission):
+    def has_object_permission(self, request, view, obj):
+        return obj.author == request.user

@@ -19,7 +19,7 @@ class Task(models.Model):
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True)
     status = models.CharField(max_length=50, choices=[(
-        status, status) for status in choices_status()], default="To Do")
+        status, status) for status in choices_status()], default="to-do")
     priority = models.CharField(max_length=50, choices=[(
         priority, priority) for priority in choices_priority()], default="medium")
     assignee = models.ForeignKey(
@@ -27,3 +27,11 @@ class Task(models.Model):
     reviewer = models.ForeignKey(
         User, on_delete=models.SET_NULL, null=True, blank=True, related_name='reviewer')
     due_date = models.DateField(null=True, blank=True)
+
+
+class TaskComment(models.Model):
+    task = models.ForeignKey(
+        Task, on_delete=models.CASCADE, related_name='comments')
+    author = models.ForeignKey(User, on_delete=models.CASCADE)
+    content = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
