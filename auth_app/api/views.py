@@ -1,23 +1,58 @@
-from rest_framework import generics, status
-from rest_framework.permissions import AllowAny
-from .serializers import RegistrationSerializer, LoginSerializer
-from rest_framework.authtoken.models import Token
-from rest_framework.response import Response
+"""
+Authentication API views.
+
+This module contains view classes for user registration and login endpoints.
+"""
+
 from django.contrib.auth.models import User
+from rest_framework import generics, status
+from rest_framework.authtoken.models import Token
+from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
+
+from .serializers import RegistrationSerializer, LoginSerializer
 
 
 class RegistrationView(generics.CreateAPIView):
+    """
+    API endpoint for user registration.
+    
+    POST /api/registration/
+    
+    Allows unauthenticated users to create a new account. Upon successful
+    registration, a token is generated and returned for immediate authentication.
+    
+    Permissions:
+        - AllowAny: No authentication required
+        
+    Returns:
+        201: Registration successful with token and user data
+        400: Validation errors (password mismatch, email/username exists, etc.)
+    """
+    
     serializer_class = RegistrationSerializer
     permission_classes = [AllowAny]
     queryset = User.objects.all()
 
     def create(self, request):
-        serializer = RegistrationSerializer(data=request.data)
-
-        if serializer.is_valid():
-            saved_account = serializer.save()
-            token, created = Token.objects.get_or_create(user=saved_account)
-            response_data = {
+        """
+        Handle user registration request.
+        
+        Args:
+            request: HTTP request containing registration data
+            
+        Returns:
+            Response: User token and profile information
+        """
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        
+            # Generate or retrieve authentication token
+        token, created = Token.objects.get_or_create(user=saved_account)        
+        saved_account = serializer.save()
+            
+        response_data = {
                 'token': token.key,
                 'fullname': saved_account.userprofile.full_name,
                 'email': saved_account.email,
@@ -28,15 +63,45 @@ class RegistrationView(generics.CreateAPIView):
 
 
 class LoginView(generics.CreateAPIView):
+    """
+    API endpoint for user login/authentication.
+    
+    POST /api/login/
+    
+    Authenticates users with email and password, returning an auth token
+    upon successful login.
+    
+    Permissions:
+        - AllowAny: No authentication required
+        
+    Returns:
+        200: Login successful with token and user data
+        400: Invalid credentials or validation errors
+    """
+    
     serializer_class = LoginSerializer
     permission_classes = [AllowAny]
     queryset = User.objects.all()
 
     def post(self, request):
+        """
+        Handle user login request.
+        
+        Args:
+            request: HTTP request containing login credentials
+            
+        Returns:
+            Response: User token and profile information
+        """
         serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        
+        # Get authenticated user
         user = serializer.get()
+        
+        # Generate or retrieve authentication token
         token, created = Token.objects.get_or_create(user=user)
+        
         data = {
             'token': token.key,
             'fullname': user.userprofile.full_name,
