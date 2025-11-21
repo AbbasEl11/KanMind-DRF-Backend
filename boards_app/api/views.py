@@ -13,10 +13,10 @@ from rest_framework.response import Response
 from ..models import Board
 from .permissions import IsBoardMemberOrOwner
 from .serializers import (
-    BoardListSerializer, 
-    BoardCreateSerializer, 
-    BoardDetailSerializer, 
-    BoardUpdatedSerializer, 
+    BoardListSerializer,
+    BoardCreateSerializer,
+    BoardDetailSerializer,
+    BoardUpdatedSerializer,
     BoardUpdateSerializer
 )
 
@@ -24,22 +24,22 @@ from .serializers import (
 class BoardViewSet(viewsets.ModelViewSet):
     """
     API endpoint for board management.
-    
+
     Provides CRUD operations for boards with dynamic serializer selection
     based on the action being performed.
-    
+
     Endpoints:
         GET /api/boards/ - List user's boards (owned or member)
         POST /api/boards/ - Create new board
         GET /api/boards/{id}/ - Retrieve board details
         PUT/PATCH /api/boards/{id}/ - Update board
         DELETE /api/boards/{id}/ - Delete board (owner only)
-    
+
     Permissions:
         - IsAuthenticated: User must be logged in
         - IsBoardMemberOrOwner: User must be owner or member for object-level access
     """
-    
+
     queryset = Board.objects.all()
     permission_classes = [IsAuthenticated, IsBoardMemberOrOwner]
     lookup_field = 'pk'
@@ -47,7 +47,7 @@ class BoardViewSet(viewsets.ModelViewSet):
     def get_serializer_class(self):
         """
         Return appropriate serializer class based on action.
-        
+
         Returns:
             Serializer: Serializer class for current action
         """
@@ -61,22 +61,28 @@ class BoardViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         """
-        Return boards where user is owner or member.
-        
+        Return boards based on action.
+
+        For list action: Return only boards where user is owner or member.
+        For detail actions (retrieve, update, delete): Return all boards,
+        permission check will handle access control.
+
         Returns:
-            QuerySet: Filtered board queryset for current user
+            QuerySet: Board queryset
         """
         user = self.request.user
-        return (Board.objects.filter(owner=user) | 
+        if self.action in ['retrieve', 'update', 'partial_update', 'destroy']:
+            return Board.objects.all()
+        return (Board.objects.filter(owner=user) |
                 Board.objects.filter(members=user)).distinct()
 
     def create(self, request, *args, **kwargs):
         """
         Create a new board.
-        
+
         Args:
             request: HTTP request with board data
-            
+
         Returns:
             Response: Created board data (201) or validation errors (400)
         """
@@ -85,44 +91,44 @@ class BoardViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         board = serializer.save()
         return Response(
-            BoardListSerializer(board).data, 
+            BoardListSerializer(board).data,
             status=status.HTTP_201_CREATED
         )
 
     def update(self, request, *args, **kwargs):
         """
         Update an existing board.
-        
+
         Supports both full (PUT) and partial (PATCH) updates.
-        
+
         Args:
             request: HTTP request with update data
-            
+
         Returns:
             Response: Updated board data (200) or validation errors (400)
         """
         partial = kwargs.get('partial', False)
         instance = self.get_object()
         serializer = self.get_serializer(
-            instance, 
-            data=request.data, 
-            partial=partial, 
+            instance,
+            data=request.data,
+            partial=partial,
             context={'request': request}
         )
         serializer.is_valid(raise_exception=True)
         board = serializer.save()
         return Response(
-            BoardUpdatedSerializer(board).data, 
+            BoardUpdatedSerializer(board).data,
             status=status.HTTP_200_OK
         )
 
     def partial_update(self, request, *args, **kwargs):
         """
         Perform partial update (PATCH) on board.
-        
+
         Args:
             request: HTTP request with partial update data
-            
+
         Returns:
             Response: Updated board data
         """
@@ -132,24 +138,22 @@ class BoardViewSet(viewsets.ModelViewSet):
     def destroy(self, request, *args, **kwargs):
         """
         Delete a board.
-        
+
         Only board owners can delete boards. Members cannot delete.
-        
+
         Args:
             request: HTTP request
-            
+
         Returns:
             Response: Empty response (204) or forbidden error (403)
         """
         board = self.get_object()
-
-        # Only owner can delete board
         if board.owner != request.user:
             return Response(
-                {"detail": "Just Owner can Delete."}, 
+                {"detail": "Just Owner can Delete."},
                 status=status.HTTP_403_FORBIDDEN
             )
-            
+
         board.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -157,42 +161,40 @@ class BoardViewSet(viewsets.ModelViewSet):
 class EmailCheck(views.APIView):
     """
     API endpoint for user lookup by email.
-    
+
     GET /api/email-check/?email=user@example.com
-    
+
     Allows authenticated users to search for other users by email address
     to add them as board members.
-    
+
     Permissions:
         - IsAuthenticated: User must be logged in
-        
+
     Query Parameters:
         email (str): Email address to search for
-        
+
     Returns:
         200: User found with id, email, and fullname
         400: Email parameter missing
         404: No user found with given email
     """
-    
+
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         """
         Search for user by email address.
-        
+
         Args:
             request: HTTP request with email query parameter
-            
+
         Returns:
             Response: User data or error message
         """
         email = request.query_params.get('email')
-
-        # Validate email parameter presence
         if not email:
             return Response(
-                {"Error": "Email Paramater is missing"}, 
+                {"Error": "Email Paramater is missing"},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -207,6 +209,6 @@ class EmailCheck(views.APIView):
             })
         except User.DoesNotExist:
             return Response(
-                {"Error": "No Profile with this email found !"}, 
+                {"Error": "No Profile with this email found !"},
                 status=status.HTTP_404_NOT_FOUND
             )

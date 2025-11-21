@@ -42,14 +42,12 @@ class RegistrationSerializer(serializers.ModelSerializer):
         read_only_fields = ['username']
         extra_kwargs = {'password': {'write_only': True}}
 
-        # Validate email uniqueness
     def validate_email(self, value):
 
         if User.objects.filter(email=value).exists():
             raise serializers.ValidationError(
                 {"error": "Email already in use."})
         return value
-        # Validate password match
 
     def validate_fullname(self, value):
         slug = slugify(value)
@@ -57,7 +55,6 @@ class RegistrationSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 {"error": "username already in use."})
         return value
-    # Validate password match
 
     def validate_password(self, value):
         pw = value
@@ -86,7 +83,6 @@ class RegistrationSerializer(serializers.ModelSerializer):
         fullname = self.validated_data.pop('fullname')
         username_slug = slugify(fullname)
 
-        # Create user and profile
         user = User(
             email=self.validated_data['email'],
             username=username_slug
@@ -154,7 +150,6 @@ class LoginSerializer(serializers.ModelSerializer):
 
         user = User.objects.get(email=email)
 
-        # Verify password
         if not user.check_password(password):
             raise serializers.ValidationError(
                 {"error": "Invalid password."})

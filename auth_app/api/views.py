@@ -49,7 +49,6 @@ class RegistrationView(generics.CreateAPIView):
 
         saved_account = serializer.save()
 
-        # Generate or retrieve authentication token
         token, created = Token.objects.get_or_create(user=saved_account)
 
         response_data = {
@@ -96,10 +95,8 @@ class LoginView(generics.CreateAPIView):
         serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        # Get authenticated user
         user = serializer.get()
 
-        # Generate or retrieve authentication token
         token, created = Token.objects.get_or_create(user=user)
 
         data = {
