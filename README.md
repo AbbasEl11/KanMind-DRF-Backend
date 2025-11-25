@@ -65,6 +65,51 @@ python manage.py runserver
 ```
 Server runs at: `http://127.0.0.1:8000/`
 
+## 🔐 Environment Variables
+
+This project uses a `.env` file to store sensitive configuration values such as the `SECRET_KEY`.
+A template is provided as **`.env.template`**.
+
+### 1. Create Your `.env` File
+
+```bash
+cp .env.template .env
+```
+
+### 2. Insert Your Django Secret Key
+
+Open the new `.env` file and add:
+
+```env
+SECRET_KEY=your_secret_key
+```
+
+Django requires this key for security.  
+Do **not** add quotes or extra spaces.
+
+---
+
+## ⚙️ How Django Loads the Environment Variables
+
+The configuration automatically loads the `.env` file using `python-dotenv`.  
+The following section in `settings.py` handles this:
+
+```python
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
+SECRET_KEY = os.getenv("SECRET_KEY")
+
+if not SECRET_KEY:
+    raise ValueError("The SECRET_KEY environment variable is not set.")
+```
+
+- `load_dotenv()` loads variables from your `.env` file.
+- `os.getenv("SECRET_KEY")` reads the secret key.
+- If missing, Django stops with a clear error to prevent misconfiguration.
+
 ## Authentication
 The API uses DRF Token Authentication.
 - Obtain token via `/api/registration/` or `/api/login/`
